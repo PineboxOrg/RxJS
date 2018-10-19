@@ -1,0 +1,6 @@
+{
+    "plugins": ["jsdom-quokka-plugin"],
+    "jsdom": {
+        "file": "./dist/index.html"
+    }
+}
