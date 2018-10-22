@@ -1,6 +1,6 @@
 import { Observable, of, from, fromEvent, concat, interval, timer, throwError } from 'rxjs';
 import { ajax } from 'rxjs/ajax';
-import { mergeMap, filter, tap, catchError, take } from 'rxjs/operators';
+import { mergeMap, filter, tap, catchError, take, map } from 'rxjs/operators';
 import { allBooks, allReaders } from './data';
 
 //#region Creating Observables from UI...
@@ -79,7 +79,6 @@ import { allBooks, allReaders } from './data';
 
 //#endregion
 
-
 //#region Cancel observable from subscription
 
 // let timesDiv = document.getElementById('times');
@@ -133,27 +132,82 @@ import { allBooks, allReaders } from './data';
 //     error => console.error
 // );
 
-let timesDiv = document.getElementById('times');
-let button = document.getElementById('timerButton');
+// let timesDiv = document.getElementById('times');
+// let button = document.getElementById('timerButton');
 
-let timer$ = Observable.create(subscriber => {
-    let i = 0;
-    let intervalID = setInterval(() => {
-        subscriber.next(i++);
-    }, 1000);
+// let timer$ = Observable.create(subscriber => {
+//     let i = 0;
+//     let intervalID = setInterval(() => {
+//         subscriber.next(i++);
+//     }, 1000);
 
-    return () => {
-        console.log('Executing teardown code');
-        clearInterval(intervalID)
+//     return () => {
+//         console.log('Executing teardown code');
+//         clearInterval(intervalID)
+//     }
+// })
+
+// timer$.
+//     pipe(take(3)).subscribe(
+//         value => timesDiv.innerHTML += `${new Date().toLocaleTimeString()} {${value}} <br/>`,
+//         null,
+//         () => console.log('All done!')
+//     );
+//#endregion
+
+
+//#region Creating Operators
+// let source$ = of(1, 2, 3, 4, 5);
+
+// function doublerOperator() {
+//     return map((value: number) => value * 2)
+// }
+
+// source$.pipe(doublerOperator())
+//     .subscribe(console.log)
+function grabAndLogClassics(year, log) {
+    return source$ => {
+        return Observable.create((subscriber) => {
+            return source$.subscribe(
+                book => {
+                    if (book.publicationYear < year) {
+                        subscriber.next(book);
+                    }
+                    if (log) {
+                        console.log(`Classic: ${book.title}`);
+                    }
+                },
+                (err) => subscriber.error(err),
+                () => subscriber.complete()
+
+            );
+        })
     }
-})
+}
 
-let b
+function grabClassics(year) {
+    return filter((book: any) => book.publicationYear < year)
+}
 
-timer$.
-    pipe(take(3)).subscribe(
-        value => timesDiv.innerHTML += `${new Date().toLocaleTimeString()} {${value}} <br/>`,
-        null,
-        () => console.log('All done!')
-    );
+function grabAndLogClassicsWithPipe(year, log) {
+    return source$ => source$.pipe(
+        filter((book: any) => book.publicationYear < year),
+        tap((classicBook: any) => log ? console.log(`Tile: ${classicBook.title}`) : null)
+    )
+}
+
+ajax('/api/books').pipe(
+    mergeMap((ajaxResponse) => ajaxResponse.response),
+    // filter((book: any) => book.publicationYear < 1950),
+    // tap((book: any) => console.log(book.title)),
+    //grabAndLogClassics(1930, false),
+    // grabClassics(1950),
+    grabAndLogClassicsWithPipe(1930, true),
+    //catchError(error => of({ title: 'Error Book', author: 'Sebastián G' }))
+    //catchError(error, caught) => caught)
+    catchError(error => throwError('An error occurrred'))
+).subscribe(
+    (value: any) => console.log(`%c Final Value ${value.title}`, 'background-color: orange; color: black'),
+    err => console.log(err)
+);
 //#endregion
